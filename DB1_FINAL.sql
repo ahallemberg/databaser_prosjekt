@@ -31,9 +31,15 @@ DROP TABLE IF EXISTS EkteTid;
 -- Opprettelse av Flyprodusent-tabellen
 CREATE TABLE Flyprodusent (
     FlyprodusentNavn VARCHAR(50),
-    Nasjonalitet VARCHAR(50) NOT NULL,
     Stiftelsesår INTEGER NOT NULL,
     CONSTRAINT FlyprodusentNavn_pk PRIMARY KEY (FlyprodusentNavn)
+);
+
+CREATE TABLE FLyprodusentNasjonalitet(
+    Nasjonalitet VARCHAR(50),
+    FlyprodusentNavn VARCHAR(50),
+    CONSTRAINT FlyprodusentNasjonalitet_pk PRIMARY KEY (Nasjonalitet, FlyprodusentNavn),
+    CONSTRAINT FlyprodusentNavn_fk FOREIGN KEY (FlyprodusentNavn) REFERENCES Flyprodusent(FlyprodusentNavn)
 );
 
 -- Opprettelse av Flytype-tabellen
