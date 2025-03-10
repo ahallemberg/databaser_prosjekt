@@ -27,6 +27,7 @@ DROP TABLE IF EXISTS Mellomlandinger;
 DROP TABLE IF EXISTS MedlemAv;
 DROP TABLE IF EXISTS RadKonfigurasjon;
 DROP TABLE IF EXISTS EkteTid;
+DROP TABLE IF EXISTS FlyprodusentNasjonalitet;
 
 -- Opprettelse av Flyprodusent-tabellen
 CREATE TABLE Flyprodusent (
@@ -51,11 +52,21 @@ CREATE TABLE Flytype (
     CHECK (SisteProduksjonsår IS NULL OR SisteProduksjonsår >= FørsteProduksjonsår)
 );
 
+-- Opprettelse av RadKonfigurasjon-tabellen
+CREATE TABLE RadKonfigurasjon (
+    RadID INTEGER NOT NULL,
+    FlyTypeNavn VARCHAR(50) NOT NULL,
+    CONSTRAINT RadKonfigurasjon_pk PRIMARY KEY (RadID, FlyTypeNavn),
+    CONSTRAINT RadID_fk FOREIGN KEY (RadID) REFERENCES Rad(RadID),
+    CONSTRAINT FlyTypeNavn_fk FOREIGN KEY (FlyTypeNavn) REFERENCES FlyType(FlyTypeNavn)
+);
+
 -- Opprettelse av Rad-tabellen
 CREATE TABLE Rad (
+    RadID VARCHAR(50),
     RadNr INTEGER,
     ErNødutgang CHAR(1) NOT NULL CHECK (ErNødutgang IN ('Y', 'N')),
-    CONSTRAINT RadNr_pk PRIMARY KEY (RadNr)
+    CONSTRAINT RadID_pk PRIMARY KEY (RadID)
 );
 
 -- Opprettelse av Sete-tabellen
@@ -291,15 +302,6 @@ CREATE TABLE MedlemAv (
     CONSTRAINT MedlemAv_pk PRIMARY KEY (KundeID, Flyselskapskode),
     CONSTRAINT KundeID_fk FOREIGN KEY (KundeID) REFERENCES Kunde(KundeID) ON DELETE CASCADE,
     CONSTRAINT Flyselskapskode_fk FOREIGN KEY (Flyselskapskode) REFERENCES Fordelsprogram(Flyselskapskode)
-);
-
--- Opprettelse av RadKonfigurasjon-tabellen
-CREATE TABLE RadKonfigurasjon (
-    RadNr INTEGER NOT NULL,
-    FlyTypeNavn VARCHAR(50) NOT NULL,
-    CONSTRAINT RadKonfigurasjon_pk PRIMARY KEY (RadNr, FlyTypeNavn),
-    CONSTRAINT RadNr_fk FOREIGN KEY (RadNr) REFERENCES Rad(RadNr),
-    CONSTRAINT FlyTypeNavn_fk FOREIGN KEY (FlyTypeNavn) REFERENCES FlyType(FlyTypeNavn)
 );
 
 -- Opprettelse av EkteTid-tabellen
