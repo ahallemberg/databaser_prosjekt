@@ -1,191 +1,290 @@
--- *Flyprodusent* - FlyprodusentNavn, Nasjonalitet, Stiftelsesår
+-- Opprettelse av Flyprodusent-tabellen
 CREATE TABLE Flyprodusent (
     FlyprodusentNavn VARCHAR(50),
     Nasjonalitet VARCHAR(50) NOT NULL,
     Stiftelsesår INTEGER NOT NULL,
-    constraint FlyprodusentNavn_pk primary key (FlyprodusentNavn)
+    constraint Flyprodusent_pk primary key (FlyprodusentNavn)
 );
 
--- kobles til flyprodusent via fly 
--- *Flytype* - FlytypeNavn, Setekonfigurasjon, FørsteProduksjonsår, SisteProduksjonsår
+-- Opprettelse av Flytype-tabellen
 CREATE TABLE Flytype (
-    FlytypeNavn VARCHAR(255),
-    Setekonfigurasjon VARCHAR(255),
+    FlytypeNavn VARCHAR(50),
     FørsteProduksjonsår INTEGER NOT NULL,
     SisteProduksjonsår INTEGER,
-    constraint FlytypeNavn_pk primary key (FlytypeNavn)
+    constraint Flytype_pk primary key (FlytypeNavn)
 );
 
--- 4NF ?
--- kobles til flåte via flytype og flyselskap via flyselskapskode
--- *Fly* - Registreringsnummer, FlyNavn, ÅrSattIDrift, FlytypeNavn, FlyprodusentNavn, Serienummer, Flyselskapkode
+-- Opprettelse av Rad-tabellen
+CREATE TABLE Rad (
+    RadNr INTEGER,
+    ErNødutgang BOOLEAN NOT NULL
+    constraint Rad_pk primary key (RadNr)
+);
+
+-- Opprettelse av Sete-tabellen
+CREATE TABLE Sete (
+    SeteID INTEGER,
+    SetePosisjon VARCHAR(1) NOT NULL,
+    RadNr INTEGER NOT NULL,
+    constraint Sete_fk foreign key (RadNr) references Rad(RadNr)
+    constraint Sete_pk primary key (SeteID)
+);
+
+-- Opprettelse av SeteValg-tabellen
+CREATE TABLE SeteValg (
+    SeteID INTEGER,
+    DelFlyvningID INTEGER,
+    BillettID INTEGER,
+    constraint SeteValg_pk primary key (SeteID, DelFlyvningID),
+    constraint SeteValg_fk foreign key (SeteID) references Sete(SeteID),
+    constraint DelFlyvning_fk foreign key (DelFlyvningID) references DelFlyvning(DelFlyvningID),
+    constraint Billett_fk foreign key (BillettID) references DelreiseBillett(BillettID)
+);
+
+-- Opprettelse av Fly-tabellen
 CREATE TABLE Fly (
     Registreringsnummer VARCHAR(50),
-    FlyNavn VARCHAR(50),
-    ÅrSattIDrift INTEGER,
-    FlytypeNavn VARCHAR(50),
-    FlyprodusentNavn VARCHAR(50),
-    Serienummer VARCHAR(50),
-    Flyselskapkode VARCHAR(50),
-    constraint Registreringsnummer_pk primary key (Registreringsnummer),
-    constraint Flyselskapskode foreign key (Flyselskapkode) references Flyselskap(Flyselskapskode),
-    constraint FlytypeNavn_fk foreign key (FlytypeNavn) references Flytype(FlytypeNavn),
+    FlyNavn VARCHAR(50) NOT NULL,
+    ÅrSattIDrift INTEGER NOT NULL,
+    FlytypeNavn VARCHAR(50) NOT NULL,
+    FlyprodusentNavn VARCHAR(50) NOT NULL,
+    Serienummer VARCHAR(50) NOT NULL,
+    Flyselskapskode VARCHAR(50) NOT NULL,
+    UNIQUE (FlyprodusentNavn, Serienummer),
+    constraint Fly_pk primary key (Registreringsnummer),
+    constraint FlytypeNavn_pk foreign key (FlytypeNavn) references Flytype(FlytypeNavn),
     constraint FlyprodusentNavn_fk foreign key (FlyprodusentNavn) references Flyprodusent(FlyprodusentNavn),
-    constraint Serienummer_unique unique (FlyprodusentNavn, Serienummer) -- Ingen flyprodusent kan ha to fly med samme serienummer
+    constraint Flyselskapskode_fk foreign key (Flyselskapskode) references Flyselskap(Flyselskapskode)
 );
 
+-- Opprettelse av Flyselskap-tabellen
 CREATE TABLE Flyselskap (
     Flyselskapskode VARCHAR(50),
-    FlyselskapNavn VARCHAR(50),
-    Stiftelsesår INTEGER,
-    Nasjonalitet VARCHAR(50),
-    constraint Flyselskapskode_pk primary key (Flyselskapskode)
+    FlyselskapsNavn VARCHAR(50) NOT NULL,
+    Stiftelsesår INTEGER NOT NULL,
+    Nasjonalitet VARCHAR(50) NOT NULL
+    constraint Flyselskap_pk primary key (Flyselskapskode)
 );
 
--- svak entitet
+-- Opprettelse av Flåte-tabellen
 CREATE TABLE Flåte (
-    Flåtenavn VARCHAR(255),
-    FlytypeNavn VARCHAR(255),
-    Flyselskapskode VARCHAR(255),
+    Flåtenavn VARCHAR(50) NOT NULL,
+    FlytypeNavn VARCHAR(50),
+    Flyselskapskode VARCHAR(50),
     constraint Flåte_pk primary key (FlytypeNavn, Flyselskapskode),
     constraint FlytypeNavn_fk foreign key (FlytypeNavn) references Flytype(FlytypeNavn),
     constraint Flyselskapskode_fk foreign key (Flyselskapskode) references Flyselskap(Flyselskapskode)
 );
 
+-- Opprettelse av Flyrute-tabellen
 CREATE TABLE Flyrute (
-    Flyrutenummer VARCHAR(255),
-    UkedagsKode VARCHAR(255),
-    OppstartsDato DATE,
-    SluttDato DATE,
-    PlanlagtAnkomsttid TIME,
-    PlanlagtAvgangstid TIME,
-    FlytypeNavn VARCHAR(255),
-    Flyselskapskode VARCHAR(255),
-    Budsjettpris INTEGER,
-    Økonomipris INTEGER,
-    Premiumpris INTEGER,
-    constraint Flyrutenummer_pk primary key (Flyrutenummer),
+    Flyrutenummer VARCHAR(50),
+    UkedagsKode VARCHAR(50) NOT NULL,
+    OppstartsDato DATE NOT NULL,
+    SluttDato DATE NOT NULL,
+    FlytypeNavn VARCHAR(50) NOT NULL,
+    Flyselskapskode VARCHAR(50) NOT NULL,
+    Startflyplass VARCHAR(50) NOT NULL,
+    Endeflyplass VARCHAR(50) NOT NULL,
+    PlanlagtAnkomsttid TIME GENERATED ALWAYS AS (
+        (SELECT MAX(PlanlagtAnkomsttid) FROM Delreise WHERE Delreise.Flyrutenummer = Flyrute.Flyrutenummer)
+    ) STORED,
+    PlanlagtAvgangstid TIME GENERATED ALWAYS AS (
+        (SELECT MIN(PlanlagtAvgangstid) FROM Delreise WHERE Delreise.Flyrutenummer = Flyrute.Flyrutenummer)
+    ) STORED,
+    Budsjettpris INTEGER GENERATED ALWAYS AS (
+        (SELECT SUM(BudsjettPris) FROM Delreise WHERE Delreise.Flyrutenummer = Flyrute.Flyrutenummer)
+    ) STORED,
+    Økonomipris INTEGER GENERATED ALWAYS AS (
+        (SELECT SUM(Økonomipris) FROM Delreise WHERE Delreise.Flyrutenummer = Flyrute.Flyrutenummer)
+    ) STORED,
+    Premiumpris INTEGER GENERATED ALWAYS AS (
+        (SELECT SUM(Premiumpris) FROM Delreise WHERE Delreise.Flyrutenummer = Flyrute.Flyrutenummer)
+    ) STORED,
+    constraint Flyrute_pk primary key (Flyrutenummer),
     constraint FlytypeNavn_fk foreign key (FlytypeNavn) references Flytype(FlytypeNavn),
-    constraint Flyselskapskode_fk foreign key (Flyselskapskode) references Flyselskap(Flyselskapskode)
+    constraint Flyselskapskode_fk foreign key (Flyselskapskode) references Flyselskap(Flyselskapskode),
+    constraint Startflyplass_fk foreign key (Startflyplass) references Flyplass(Flyplasskode),
+    constraint Endeflyplass_fk foreign key (Endeflyplass) references Flyplass(Flyplasskode)
 );
 
+-- Opprettelse av Flyplass-tabellen
+CREATE TABLE Flyplass (
+    Flyplasskode VARCHAR(50),
+    Flyplassnavn VARCHAR(100) NOT NULL
+    constraint Flyplass_pk primary key (Flyplasskode)
+);
+
+-- Opprettelse av Flyvning-tabellen
 CREATE TABLE Flyvning (
     Løpenummer INTEGER,
-    Flyrutenummer VARCHAR(255),
-    FlyvningStatus {"Planned","Cancelled", "Completed", "Active"},
-    Dato DATE,
-    PlanlagtAvgangstid TIME,
-    PlanlagtAnkomsttid TIME,
-    Registreringsnummer VARCHAR(255),
-    constraint Registreringsnummer_fk foreign key (Registreringsnummer) references Fly(Registreringsnummer),
-    constraint Løpenummer_pk primary key (Løpenummer),
+    Flyrutenummer VARCHAR(50),
+    FlyvningStatus VARCHAR(50),
+    CHECK(FlyvningStatus IN('Planned', 'Cancelled', 'Completed', 'Active')),
+    Dato DATE NOT NULL,
+    PlanlagtAvgangstid TIME NOT NULL,
+    PlanlagtAnkomststid TIME NOT NULL,
+    Registreringsnummer VARCHAR(50) NOT NULL,
+    constraint Flyvning_pk primary key (Løpenummer, Flyrutenummer),
+    UNIQUE (Flyrutenummer, Dato),
+    constraint Flyrutenummer_fk foreign key (Flyrutenummer) references Flyrute(Flyrutenummer),
+    constraint Registreringsnummer_fk foreign key (Registreringsnummer) references Fly(Registreringsnummer)
+);
+
+-- Opprettelse av DelFlyvning-tabellen
+CREATE TABLE DelFlyvning (
+    DelflyvningsID INTEGER,
+    Delreisenummer INTEGER NOT NULL,
+    Løpenummer INTEGER NOT NULL,
+    Flyrutenummer VARCHAR(50) NOT NULL,
+    DelFlyvningStatus VARCHAR(50) GENERATED ALWAYS AS (
+        (SELECT FlyvningStatus FROM Flyvning WHERE Flyvning.Løpenummer = DelFlyvning.Løpenummer)
+    ) STORED,
+    PlanlagtAnkomsttid TIME NOT NULL,
+    PlanlagtAvgangstid TIME NOT NULL,
+    constraint DelFlyvningsID_pk primary key (DelflyvningsID),
+    constraint Delreisenummer_fk foreign key (Delreisenummer) references DelReise(Delreisenummer),
+    constraint Løpenummer_fk foreign key (Løpenummer) references Flyvning(Løpenummer),
     constraint Flyrutenummer_fk foreign key (Flyrutenummer) references Flyrute(Flyrutenummer)
 );
 
--- svak entitet, kun ett fordelsprogram per flyselskap
-CREATE TABLE Fordelsprogram(
-    FordelsprogramNavn VARCHAR(255),
-    Flyselskapskode VARCHAR(255),
-    constraint Flyselskapskode_fk foreign key (Flyselskapskode) references Flyselskap(Flyselskapskode),
-    constraint FordelsprogramNavn_pk primary key (FordelsprogramNavn)
+-- Opprettelse av DelReise-tabellen
+CREATE TABLE DelReise (
+    Delreisenummer INTEGER,
+    PlanlagtAnkomsttid TIME NOT NULL,
+    PlanlagtAvgangstid TIME NOT NULL,
+    BudsjettPris INTEGER NOT NULL,
+    Økonomipris INTEGER NOT NULL,
+    PremiumPris INTEGER NOT NULL,
+    Flyrutenummer VARCHAR(50) NOT NULL,
+    FlyplassFra VARCHAR(50) NOT NULL,
+    FlyplassTil VARCHAR(50) NOT NULL,
+    constraint Delreisenummer_pk primary key (Delreisenummer),
+    constraint Flyrutenummer_fk foreign key (Flyrutenummer) references Flyrute(Flyrutenummer),
+    constraint FlyplassFra_fk foreign key (FlyplassFra) references Flyplass(Flyplasskode),
+    constraint FlyplassTil_fk foreign key (FlyplassTil) references Flyplass(Flyplasskode)
 );
 
-CREATE TABLE Kunde(
+-- Opprettelse av Kunde-tabellen
+CREATE TABLE Kunde (
     KundeID INTEGER,
     Navn VARCHAR(255) NOT NULL,
-    Tlf VARCHAR(255) NOT NULL,
+    Tlf VARCHAR(50) NOT NULL,
     Epost VARCHAR(255) NOT NULL,
-    Nasjonalitet VARCHAR(255) NOT NULL,
+    Nasjonalitet VARCHAR(50) NOT NULL
     constraint KundeID_pk primary key (KundeID)
 );
 
--- mange til mange tabell
-CREATE TABLE MedlemAv(
-    KundeID INTEGER,
-    Flyselskapskode VARCHAR(255),
-    constraint MedlemAv_pk primary key (KundeID, Flyselskapskode),
-    constraint KundeID_fk foreign key (KundeID) references Kunde(KundeID),
+-- Opprettelse av DelreiseBillett-tabellen
+CREATE TABLE DelreiseBillett (
+    BillettID INTEGER NOT NULL,
+    Kjøpspris INTEGER NOT NULL,
+    Billettkategori VARCHAR(50) NOT NULL,
+    Referansenummer VARCHAR(50) NOT NULL,
+    KundeNr INTEGER NOT NULL,
+    constraint BillettID_pk primary key (BillettID),
+    constraint Referansenummer_fk foreign key (Referansenummer) REFERENCES Billettkjøp(Referansenummer),
+    constraint KundeNr_fk foreign key (KundeNr) REFERENCES Kunde(KundeID)
+);
+-- Opprettelse av Delflyvningsbillett-tabellen
+CREATE TABLE Delflyvningsbillett (
+    DelflyvningbillettID INTEGER primary key,
+    BillettID INTEGER NOT NULL,
+    DelFlyvningID INTEGER NOT NULL,
+    constraint BillettID_fk foreign key (BillettID) references DelreiseBillett(BillettID),
+    constraint DelFlyvningID_fk foreign key (DelFlyvningID) references DelFlyvning(DelflyvningsID)
+);
+
+-- Opprettelse av FlyvningBillett-tabellen
+CREATE TABLE FlyvningBillett (
+    FlyvningbillettID INTEGER,
+    BillettID INTEGER NOT NULL,
+    Løpenummer INTEGER NOT NULL,
+    Flyrutenummer VARCHAR(50) NOT NULL,
+    constraint FlyvningbillettID_pk primary key (FlyvningbillettID),
+    constraint BillettID_fk foreign key (BillettID) references DelreiseBillett(BillettID),
+    constraint Løpenummer_fk foreign key (Løpenummer) references Flyvning(Løpenummer),
+    constraint Flyrutenummer_fk foreign key (Flyrutenummer) references Flyvning(Flyrutenummer)
+);
+
+-- Opprettelse av InnsjekketBagasje-tabellen
+CREATE TABLE InnsjekketBagasje (
+    Regnummer INTEGER,
+    Vekt INTEGER NOT NULL,
+    Innleveringstidspunkt TIME NOT NULL,
+    BillettID INTEGER NOT NULL,
+    constraint Regnummer_pk primary key (Regnummer),
+    constraint BillettID_fk foreign key (BillettID) references DelReiseBillett(BillettID)
+);
+
+-- Opprettelse av Innsjekking-tabellen
+CREATE TABLE Innsjekking (
+    Innsjekkingsreferanse INTEGER,
+    Tidspunkt TIME NOT NULL,
+    BillettID INTEGER NOT NULL,
+    constraint Innsjekkingsreferanse_pk primary key (Innsjekkingsreferanse),
+    constraint BillettID_fk foreign key (BillettID) references DelReiseBillett(BillettID)
+);
+
+-- Opprettelse av Fordelsprogram-tabellen
+CREATE TABLE Fordelsprogram (
+    Flyselskapskode VARCHAR(50),
+    FordelsprogramNavn VARCHAR(100) NOT NULL,
+    constraint Flyselskapskode_pk primary key (Flyselskapskode),
     constraint Flyselskapskode_fk foreign key (Flyselskapskode) references Flyselskap(Flyselskapskode)
 );
 
-CREATE TABLE DelreiseBillett(
-    BillettID INTEGER,
-    Kjøpsdato DATE,
-    Referansenummer VARCHAR(255),
-    constraint BillettID_pk primary key (BillettID)
-    constraint Referansenummer_fk foreign key (Referansenummer) references FlyvningBillett(Referansenummer)
+-- Opprettelse av Billettkjøp-tabellen
+CREATE TABLE Billettkjøp (
+    Referansenummer VARCHAR(50),
+    KundeNr INTEGER NOT NULL,
+    TotalKjøpspris INTEGER GENERATED ALWAYS AS (
+        (SELECT SUM(Kjøpspris) FROM DelReiseBillett WHERE DelReiseBillett.BillettID = Billettkjøp.Referansenummer)
+    ) STORED,
+    KjøpsDato DATE NOT NULL,
+    TurRetur BOOLEAN NOT NULL,
+    constraint Billettkjøp_pk primary key (Referansenummer),
+    constraint KundeNr_fk foreign key (KundeNr) references Kunde(KundeID)
 );
 
-CREATE TABLE DelFlyvningBillett(
-    DelFlyvningBillettID INTEGER,
-    TotalPris INTEGER,
-    constraint DelFlyvningBillettID_pk primary key (DelFlyvningBillettID)
+-- Opprettelse av Mellomlandinger-tabellen
+CREATE TABLE Mellomlandinger (
+    Flyrutenummer VARCHAR(50) NOT NULL,
+    FlyplassKode VARCHAR(50) NOT NULL,
+    PlanlagtAvgangstid TIME NOT NULL,
+    PlanlagtAnkomsttid TIME NOT NULL,
+    constraint Mellomlandinger_pk primary key (Flyrutenummer, FlyplassKode),
+    constraint Flyrutenummer_fk foreign key (Flyrutenummer) references Flyrute(Flyrutenummer),
+    constraint FlyplassKode_fk foreign key (FlyplassKode) references Flyplass(Flyplasskode)
 );
 
-CREATE TABLE FlyvningBillett(
-    FlyvningBillettID INTEGER,
-    TotalPris INTEGER,
-    constraint BillettID_fk foreign key (BillettID) references DelreiseBillett(BillettID)
+-- Opprettelse av MedlemAv-tabellen
+CREATE TABLE MedlemAv (
+    KundeID INTEGER NOT NULL,
+    Flyselskapskode VARCHAR(50) NOT NULL,
+    constraint MedlemAv_pk primary key (KundeID, Flyselskapskode),
+    constraint KundeID_fk foreign key (KundeID) references Kunde(KundeID),
+    constraint Flyselskapskode_fk foreign key (Flyselskapskode) references Fordelsprogram(Flyselskapskode)
 );
 
-CREATE TABLE BillettKjoep(
-    TotalKjoepsPris INTEGER,
-    Referansenummer VARCHAR(255),
-    Dato DATE,
-    TurRetur BOOLEAN,
-    constraint Referansenummer_pk primary key (Referansenummer)
+-- Opprettelse av RadKonfigurasjon-tabellen
+CREATE TABLE RadKonfigurasjon (
+    RadNr INTEGER NOT NULL,
+    FlyTypeNavn VARCHAR(50) NOT NULL,
+    constraint RadKonfigurasjon_pk primary key (RadNr, FlyTypeNavn),
+    constraint RadNr_fk foreign key (RadNr) references Rad(RadNr),
+    constraint FlyTypeNavn_fk foreign key (FlyTypeNavn) references FlyType(FlyTypeNavn)
 );
 
-CREATE TABLE Innsjekking(
-    BillettID INTEGER,
-    Tidspunkt TIME,
-    constraint BillettID_fk foreign key (BillettID) references DelreiseBillett(BillettID)
-    constraint BillettID_pk primary key (BillettID)
-);
-
-CREATE TABLE Bagasje(
-    Regnummer INTEGER,
-    Vekt INTEGER,
-    Innleveringstidspunkt TIME,
-    BillettID INTEGER,
-    constraint BillettID_fk foreign key (BillettID) references DelreiseBillett(BillettID)
-    constraint Regnummer_pk primary key (Regnummer)
-);
-
-CREATE TABLE Sete(
-    SeteID INTEGER,
-    Rad INTEGER,
-    BillettID INTEGER,
-    FlytypeNavn VARCHAR(255),
-    FlytypeNavn VARCHAR(255),
-    constraint SeteID_pk primary key (SeteID)
-    constraint BillettID_fk foreign key (BillettID) references DelreiseBillett(BillettID)
-    constraint FlytypeNavn_fk foreign key (FlytypeNavn) references Flytype(FlytypeNavn)
-);
-
-CREATE TABLE SeteValg(
-    SeteID INTEGER,
-    DelFlyvningID INTEGER,
-    BillettID INTEGER,
-    constraint SeteID_fk foreign key (SeteID) references Sete(SeteID)
-    constraint DelFlyvningID_fk foreign key (DelFlyvningID) references DelFlyvning(DelFlyvningID)
-    constraint BillettID_fk foreign key (BillettID) references DelreiseBillett(BillettID)
-    constraint SeteID_pk primary key (SeteID, DelFlyvningID, BillettID)
-);
-
-CREATE TABLE DelFlyvning(
-    DelFlyvningID INTEGER,
-    DelFlyvningStatus {"Planned","Cancelled", "Completed", "Active"},
-    PlanlagtAnkomsttid TIME,
-    PlanlagtAvgangstid TIME,
-    constraint DelFlyvningID_pk primary key (DelFlyvningID)
-);
-
-CREATE TABLE DelReise(
-    DelReiseID INTEGER,
-    BillettKateogri {"Økonomi", "Premium", "Budsjett"},
-    Økonomipris INTEGER,
-    Premiumpris INTEGER,
-    Budsjettpris INTEGER,
-    constraint DelReiseID_pk primary key (DelReiseID)
+-- Opprettelse av EkteTid-tabellen
+CREATE TABLE EkteTid (
+    Flyrutenummer VARCHAR(50) NOT NULL,
+    Løpenummer INTEGER NOT NULL,
+    FlyplassKode VARCHAR(50) NOT NULL,
+    AnkomstTid TIME,
+    AvgangsTid TIME,
+    constraint EkteTid_pk primary key (Flyrutenummer, Løpenummer, FlyplassKode),
+    constraint Flyrutenummer_fk foreign key (Flyrutenummer) references Flyrute(Flyrutenummer),
+    constraint Løpenummer_fk foreign key (Løpenummer) references Flyvning(Løpenummer),
+    constraint FlyplassKode_fk foreign key (FlyplassKode) references Flyplass(Flyplasskode)
 );
